@@ -7,6 +7,7 @@ CONFIG -= app_bundle
 
 TEMPLATE = app
 
-SOURCES += main.cpp
+SOURCES += main.cpp \
+    input_creator.cpp
 
 CONFIG += c++11
