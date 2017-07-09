@@ -3,10 +3,14 @@
 
 #include <fstream>
 #include <string>
+#include <queue>
+#include <mutex>
+#include <atomic>
 
 class Person {
 	std::string d_name;
 	long int d_id;
+
 public:
 	Person();
 	Person(std::string name, long int id);
@@ -27,6 +31,14 @@ class MyDatabase {
 	std::fstream d_fp;
 	std::string s_filename;
 
+	// One mutex for queue usage
+	std::mutex d_queueMut;
+	// One atomic for signalizing end-of-process
+	std::atomic<bool> d_procEnded;
+	// Structures for parallel processing
+	std::queue<Person> d_queue;
+	std::vector<Person> d_vec;
+
 	// Reads next person in the database file.
 	Person readPerson();
 
@@ -35,6 +47,12 @@ class MyDatabase {
 
 	void heapify_up(std::vector<Person> &vec, int index);
 	void heapify_down(std::vector<Person> &vec, int index, int size);
+
+	// Procedures for parallel heapsorting
+	static void p_readPeople(MyDatabase *db);
+	static void p_writeSorted();
+	void p_popSorted();
+	void p_buildHeap();
 
 public:
 	MyDatabase();
@@ -49,6 +67,9 @@ public:
 
 	// Conventional heapsort. First read, then sort.
 	void normal_heapsort(std::ostream &fp);
+
+	// Parallel heapsort. First (read & build_heap) then (pop_sorted & write)
+	void parallel_heapsort(std::ostream &fp);
 };
 
 #endif // MYDATABASE_H

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <thread>
 
 #include "mydatabase.h"
 
@@ -77,6 +78,7 @@ void MyDatabase::readFromInputFile(istream &fp){
 	string str;
 	long int num;
 
+	d_fp.clear();
 	d_fp.seekp(0, d_fp.end);
 	do {
 		if(fp >> num && fp >> str){
@@ -90,6 +92,7 @@ void MyDatabase::readFromInputFile(istream &fp){
 void MyDatabase::printAll(){
 	Person p;
 
+	d_fp.clear();
 	d_fp.seekg(0, d_fp.beg);
 
 	do {
@@ -139,7 +142,8 @@ void MyDatabase::normal_heapsort(ostream &fp){
 	vector<Person> vec;
 	Person p;
 
-	d_fp.seekg(0, d_fp.beg);
+	d_fp.clear();
+	d_fp.seekg(0, ios::beg);
 
 	do {
 		p = readPerson();
@@ -158,4 +162,98 @@ void MyDatabase::normal_heapsort(ostream &fp){
 	for(Person &p: vec){
 		p.write(fp);
 	}
+}
+
+void MyDatabase::p_readPeople(MyDatabase *db){
+	unique_lock<mutex> lock(db->d_queueMut, defer_lock);
+	vector<Person> vec;
+	Person p;
+
+	db->d_fp.clear();
+	db->d_fp.seekg(0, ios::beg);
+
+	do {
+		vec.clear();
+
+		// Reads a block of 100 Person
+		for(int i = 0; i < 100; i++){
+			p.read(db->d_fp);
+			if(!db->d_fp.eof()){
+				vec.push_back(p);
+			} else break;
+		}
+
+		// Adds the block of Person to the queue
+		while(!lock.try_lock());
+		cout << "Read block\n";
+
+		if(db->d_fp.eof())
+			break;
+
+		for(Person &p: vec){
+			db->d_queue.push(p);
+		}
+
+		lock.unlock();
+	} while (true);
+
+	db->d_procEnded = true;
+}
+
+void MyDatabase::p_writeSorted(){
+
+}
+
+void MyDatabase::p_buildHeap(){
+	unique_lock<mutex> lock(d_queueMut, defer_lock);
+	d_vec.clear();
+
+	while(true){
+		// Lock queue
+		while(!lock.try_lock());
+		cout << "BuildHeap\n";
+
+		// Add 1 Person from the queue to the heap
+		if(d_queue.size() != 0){
+			d_vec.push_back(d_queue.front());
+			d_queue.pop();
+			heapify_up(d_vec, d_vec.size()-1);
+		}
+
+		// Unlock queue
+		lock.unlock();
+
+		// Verify end-of-process
+		if(d_procEnded == true){
+			// Add all elements from queue
+			while(d_queue.size() != 0){
+				d_vec.push_back(d_queue.front());
+				d_queue.pop();
+				heapify_up(d_vec, d_vec.size()-1);
+			}
+			// Exit
+			break;
+		}
+	}
+}
+
+void MyDatabase::p_popSorted(){
+
+}
+
+void MyDatabase::parallel_heapsort(ostream &fp){
+	d_procEnded = false;
+
+	thread thr(MyDatabase::p_readPeople, this);
+	p_buildHeap();
+	thr.join();
+
+	// Sequential sort. Yet.
+	for(int i = d_vec.size()-1; i > 0; i--){
+		swap(d_vec[0], d_vec[i]);
+		heapify_down(d_vec, 0, i);
+	}
+
+	for(Person &p: d_vec)
+		p.print();
 }

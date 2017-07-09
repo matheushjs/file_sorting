@@ -10,7 +10,7 @@ using std::clock;
 using std::cout;
 
 int main(int argc, char *argv[]){
-	MyDatabase db = MyDatabase();
+	MyDatabase db;
 	std::ofstream file;
 
 	clock_t beg, end;
@@ -22,7 +22,11 @@ int main(int argc, char *argv[]){
 	beg = clock();
 	db.normal_heapsort(file);
 	end = clock();
+	cout << "Normal heapsort (clocks): " << (end-beg) / (double) CLOCKS_PER_SEC << '\n';
 
+	beg = clock();
+	db.parallel_heapsort(file);
+	end = clock();
 	cout << "Normal heapsort (clocks): " << (end-beg) / (double) CLOCKS_PER_SEC << '\n';
 
 	return 0;
