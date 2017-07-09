@@ -22,20 +22,36 @@ void Person::print() {
 	cout << d_id << '\n';
 }
 
-Person MyDatabase::readPerson(){
-	Person p;
-	long int id;
+bool Person::operator< (const Person &p2){
+	return this->d_id < p2.d_id ? true : false;
+}
+
+bool Person::operator== (const Person &p2){
+	return this->d_id == p2.d_id ? true : false;
+}
+
+bool Person::operator> (const Person &p2){
+	return this->d_id > p2.d_id ? true : false;
+}
+
+void Person::read(istream &fp){
 	char buf[500];
 
-	d_fp.getline(buf, 500, '\0');
-	d_fp.read((char *) &id, sizeof(long int));
+	fp.getline(buf, 500, '\0');
+	this->d_name.assign(buf);
 
-	if(!d_fp.eof()){
-		p = Person(buf, id);
-	}
-
-	return p;
+	fp.read((char *) &this->d_id, sizeof(long int));
 }
+
+void Person::write(ostream &fp){
+	string &str = this->d_name;
+	long int &num = this->d_id;
+
+	fp.write(str.c_str(), str.size()+1);
+	fp.write((char *) &num, sizeof(long int));
+}
+
+
 
 MyDatabase::MyDatabase() : s_filename("database.db") {
 	d_fp.open(s_filename, d_fp.out | d_fp.in);
@@ -46,7 +62,18 @@ MyDatabase::MyDatabase() : s_filename("database.db") {
 	}
 }
 
-void MyDatabase::storeNewPeople(istream &fp){
+Person MyDatabase::readPerson(){
+	Person p;
+	p.read(d_fp);
+	return p;
+}
+
+void MyDatabase::writePerson(Person &p){
+	p.write(d_fp);
+}
+
+
+void MyDatabase::readFromInputFile(istream &fp){
 	string str;
 	long int num;
 
@@ -61,8 +88,9 @@ void MyDatabase::storeNewPeople(istream &fp){
 }
 
 void MyDatabase::printAll(){
-	d_fp.seekg(0, d_fp.beg);
 	Person p;
+
+	d_fp.seekg(0, d_fp.beg);
 
 	do {
 		p = readPerson();
@@ -73,9 +101,61 @@ void MyDatabase::printAll(){
 	} while(true);
 }
 
+#define PARENT(X) ((X-1)/2)
+#define LEFT(X) (X*2+1)
+#define RIGHT(X) (X*2+2)
+
+void MyDatabase::heapify_up(vector<Person> &vec, int index){
+	while(index != 0) {
+		if(vec[PARENT(index)] < vec[index]){
+			swap(vec[PARENT(index)], vec[index]);
+			index = PARENT(index);
+		} else break;
+	}
+}
+
+void MyDatabase::heapify_down(vector<Person> &vec, int index, int size){
+	int largest, left, right;
+
+	while(true){
+		left = LEFT(index);
+		right = RIGHT(index);
+		largest = index;
+
+		if(left < size && vec[left] > vec[largest])
+			largest = left;
+
+		if(right < size && vec[right] > vec[largest])
+			largest = right;
+
+		if(largest != index){
+			swap(vec[index], vec[largest]);
+			index = largest;
+		} else break;
+	}
+}
+
 void MyDatabase::normal_heapsort(ostream &fp){
 	vector<Person> vec;
+	Person p;
 
-	// Read all
+	d_fp.seekg(0, d_fp.beg);
 
+	do {
+		p = readPerson();
+
+		if(!d_fp.eof()) {
+			vec.push_back(p);
+			this->heapify_up(vec, vec.size()-1);
+		} else break;
+	} while(true);
+
+	for(int i = vec.size()-1; i > 0; i--){
+		swap(vec[0], vec[i]);
+		heapify_down(vec, 0, i);
+	}
+
+	for(Person &p: vec){
+		p.write(fp);
+	}
 }

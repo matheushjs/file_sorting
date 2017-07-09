@@ -14,6 +14,13 @@ public:
 	std::string name();
 	long int id();
 	void print();
+
+	void read(std::istream &fp);
+	void write(std::ostream &fp);
+
+	bool operator< (const Person &p2);
+	bool operator== (const Person &p2);
+	bool operator> (const Person &p2);
 };
 
 class MyDatabase {
@@ -23,13 +30,19 @@ class MyDatabase {
 	// Reads next person in the database file.
 	Person readPerson();
 
+	// Writes a person to the database file.
+	void writePerson(Person &p);
+
+	void heapify_up(std::vector<Person> &vec, int index);
+	void heapify_down(std::vector<Person> &vec, int index, int size);
+
 public:
 	MyDatabase();
 
 	// The database file is a sequence of ID (long int) / name (string).
 	// The input file 'fp' should be a sequence of ID (a string representing a number) and
 	//   a name, separated by blank spaces.
-	void storeNewPeople(std::istream &fp);
+	void readFromInputFile(std::istream &fp);
 
 	// Prints all records in the database file.
 	void printAll();
