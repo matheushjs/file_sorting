@@ -165,7 +165,7 @@ void MyDatabase::normal_heapsort(ostream &fp){
 }
 
 void MyDatabase::p_readPeople(MyDatabase *db){
-	unique_lock<mutex> lock(db->d_queueMut, defer_lock);
+	unique_lock<mutex> lock(db->d_mut, defer_lock);
 	vector<Person> vec;
 	Person p;
 
@@ -187,21 +187,21 @@ void MyDatabase::p_readPeople(MyDatabase *db){
 		while(!lock.try_lock());
 
 		for(Person &p: vec){
-			db->d_queue.push(p);
+			db->d_queue.push_back(p);
 		}
+
+		lock.unlock();
 
 		if(db->d_fp.eof())
 			break;
-
-		lock.unlock();
 	} while (true);
 
 	db->d_procEnded = true;
 }
 
 void MyDatabase::p_writeSorted(MyDatabase *db, ostream &fp){
-	unique_lock<mutex> lock(db->d_queueMut, defer_lock);
-	vector<Person> popped;
+	unique_lock<mutex> lock(db->d_mut, defer_lock);
+	vector<Person> stolen;
 
 	while(true){
 		// No-op if queue is empty
@@ -214,28 +214,24 @@ void MyDatabase::p_writeSorted(MyDatabase *db, ostream &fp){
 		// Lock queue
 		while(!lock.try_lock());
 
-		// Get some Person from the queue
-		int n = min((int) db->d_queue.size(), 1000);
-		for(int i = 0; i < n; i++){
-			popped.push_back(db->d_queue.front());
-			db->d_queue.pop();
-		}
+		// Steal queue
+		swap(stolen, db->d_queue);
 
 		// Unlock queue
 		lock.unlock();
 
-		// Write popped person into the file
-		for(Person &p: popped)
+		// Write stolen Person into the file
+		for(Person &p: stolen)
 			p.write(fp);
-		popped.clear();
+		stolen.clear();
 	}
 }
 
 void MyDatabase::p_buildHeap(){
-	unique_lock<mutex> lock(d_queueMut, defer_lock);
-	vector<Person> popped;
+	unique_lock<mutex> lock(d_mut, defer_lock);
+	vector<Person> stolen;
 
-	d_vec.clear();
+	d_heap.clear();
 
 	while(true){
 		// No-op if queue is empty
@@ -248,37 +244,33 @@ void MyDatabase::p_buildHeap(){
 		// Lock queue
 		while(!lock.try_lock());
 
-		// Get some Person from the queue
-		int n = min((int) d_queue.size(), 1000);
-		for(int i = 0; i < n; i++){
-			popped.push_back(d_queue.front());
-			d_queue.pop();
-		}
+		// Steal the queue
+		swap(stolen, d_queue);
 
 		// Unlock queue
 		lock.unlock();
 
-		// Add popped elements to the heap
-		for(Person &p: popped){
-			d_vec.push_back(p);
-			heapify_up(d_vec, d_vec.size()-1);
+		// Add stolen elements to the heap
+		for(Person &p: stolen){
+			d_heap.push_back(p);
+			heapify_up(d_heap, d_heap.size()-1);
 		}
-		popped.clear();
+		stolen.clear();
 	}
 }
 
 void MyDatabase::p_popSorted(){
-	unique_lock<mutex> lock(d_queueMut, defer_lock);
+	unique_lock<mutex> lock(d_mut, defer_lock);
 	vector<Person> popped;
 
-	int last_elem = d_vec.size() - 1;
+	int last_elem = d_heap.size() - 1;
 	while(true){
 		// Pop some elements
 		int n = min(100, last_elem+1);
 		for(int i = 0; i < n; i++){
-			popped.push_back(d_vec[0]);
-			d_vec[0] = d_vec[last_elem];
-			heapify_down(d_vec, 0, last_elem);
+			popped.push_back(d_heap[0]);
+			d_heap[0] = d_heap[last_elem];
+			heapify_down(d_heap, 0, last_elem);
 			last_elem -= 1;
 		}
 
@@ -287,7 +279,7 @@ void MyDatabase::p_popSorted(){
 
 		// Add popped elements to the queue
 		for(Person &p: popped){
-			d_queue.push(p);
+			d_queue.push_back(p);
 			//cout << p.id() << '\n';
 		}
 

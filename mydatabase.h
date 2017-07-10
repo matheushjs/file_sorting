@@ -32,12 +32,12 @@ class MyDatabase {
 	std::string s_filename;
 
 	// One mutex for queue usage
-	std::mutex d_queueMut;
+	std::mutex d_mut;
 	// One atomic for signalizing end-of-process
 	std::atomic<bool> d_procEnded;
 	// Structures for parallel processing
-	std::queue<Person> d_queue;
-	std::vector<Person> d_vec;
+	std::vector<Person> d_queue;
+	std::vector<Person> d_heap;
 
 	// Reads next person in the database file.
 	Person readPerson();
