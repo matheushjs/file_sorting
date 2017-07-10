@@ -50,7 +50,7 @@ class MyDatabase {
 
 	// Procedures for parallel heapsorting
 	static void p_readPeople(MyDatabase *db);
-	static void p_writeSorted();
+	static void p_writeSorted(MyDatabase *db, std::ostream &fp);
 	void p_popSorted();
 	void p_buildHeap();
 

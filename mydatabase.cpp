@@ -185,7 +185,6 @@ void MyDatabase::p_readPeople(MyDatabase *db){
 
 		// Adds the block of Person to the queue
 		while(!lock.try_lock());
-		cout << "Read block\n";
 
 		if(db->d_fp.eof())
 			break;
@@ -200,8 +199,31 @@ void MyDatabase::p_readPeople(MyDatabase *db){
 	db->d_procEnded = true;
 }
 
-void MyDatabase::p_writeSorted(){
+void MyDatabase::p_writeSorted(MyDatabase *db, ostream &fp){
+	unique_lock<mutex> lock(db->d_queueMut, defer_lock);
 
+	while(true){
+		// No-op if queue is empty
+		if(db->d_queue.size() == 0){
+			if(db->d_procEnded){
+				return;
+			} else continue;
+		}
+
+		// Lock queue
+		while(!lock.try_lock());
+
+		// Write some Person
+		int n = min((int) db->d_queue.size(), 100);
+		for(int i = 0; i < n; i++){
+			db->d_queue.front().write(fp);
+			//cout << db->d_queue.front().id() << '\n';
+			db->d_queue.pop();
+		}
+
+		// Unlock queue
+		lock.unlock();
+	}
 }
 
 void MyDatabase::p_buildHeap(){
@@ -211,7 +233,6 @@ void MyDatabase::p_buildHeap(){
 	while(true){
 		// Lock queue
 		while(!lock.try_lock());
-		cout << "BuildHeap\n";
 
 		// Add 1 Person from the queue to the heap
 		if(d_queue.size() != 0){
@@ -238,7 +259,39 @@ void MyDatabase::p_buildHeap(){
 }
 
 void MyDatabase::p_popSorted(){
+	unique_lock<mutex> lock(d_queueMut, defer_lock);
+	vector<Person> popped;
 
+	int last_elem = d_vec.size() - 1;
+	while(true){
+		// Pop some elements
+		int n = min(100, last_elem+1);
+		for(int i = 0; i < n; i++){
+			popped.push_back(d_vec[0]);
+			d_vec[0] = d_vec[last_elem];
+			heapify_down(d_vec, 0, last_elem);
+			last_elem -= 1;
+		}
+
+		// Lock queue
+		while(!lock.try_lock());
+
+		// Add popped elements to the queue
+		for(Person &p: popped)
+			d_queue.push(p);
+
+		// Unlock queue
+		lock.unlock();
+
+		// Empty vector
+		popped.clear();
+
+		// Verify end-of-process
+		if(last_elem < 0){
+			d_procEnded = true;
+			break;
+		}
+	}
 }
 
 void MyDatabase::parallel_heapsort(ostream &fp){
@@ -248,12 +301,8 @@ void MyDatabase::parallel_heapsort(ostream &fp){
 	p_buildHeap();
 	thr.join();
 
-	// Sequential sort. Yet.
-	for(int i = d_vec.size()-1; i > 0; i--){
-		swap(d_vec[0], d_vec[i]);
-		heapify_down(d_vec, 0, i);
-	}
-
-	for(Person &p: d_vec)
-		p.print();
+	d_procEnded = false;
+	thr = thread(MyDatabase::p_writeSorted, this, ref(fp));
+	p_popSorted();
+	thr.join();
 }
