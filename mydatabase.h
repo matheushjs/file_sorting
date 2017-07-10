@@ -31,13 +31,13 @@ class MyDatabase {
 	std::fstream d_fp;
 	std::string s_filename;
 
-	// One mutex for queue usage
-	std::mutex d_mut;
-	// One atomic for signalizing end-of-process
-	std::atomic<bool> d_procEnded;
-	// Structures for parallel processing
-	std::vector<Person> d_queue;
+	// Structures for parallel heapsort
+	// Both will be asynchronously, but safely, accessed.
 	std::vector<Person> d_heap;
+	int d_heapSize;
+
+	// Number of elements in the database
+	int d_size;
 
 	// Reads next person in the database file.
 	Person readPerson();
@@ -56,6 +56,8 @@ class MyDatabase {
 
 public:
 	MyDatabase();
+
+	int size();
 
 	// The database file is a sequence of ID (long int) / name (string).
 	// The input file 'fp' should be a sequence of ID (a string representing a number) and

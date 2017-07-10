@@ -17,6 +17,8 @@ int main(int argc, char *argv[]){
 	MyDatabase db;
 	ofstream file;
 
+	cout << "Elements counted: " << db.size() << '\n';
+
 	/*
 	std::ifstream infile;
 	infile.open("input.txt", std::ios::in);
@@ -30,10 +32,7 @@ int main(int argc, char *argv[]){
 	clock_t beg, end;
 	time_point<system_clock> begt, endt;
 
-	// db.printAll();
-
 	file.open("output.db", file.in | file.trunc);
-
 
 	begt = system_clock::now();
 	beg = clock();
@@ -43,7 +42,6 @@ int main(int argc, char *argv[]){
 	endt = system_clock::now();
 	cout << "Normal heapsort (clocks): " << (end-beg) / (double) CLOCKS_PER_SEC << '\n';
 	cout << "Normal heapsort (time): " << duration<double>(endt-begt).count() << '\n';
-
 
 	file.close();
 	file.open("output.db", file.in | file.trunc);

@@ -61,6 +61,20 @@ MyDatabase::MyDatabase() : s_filename("database.db") {
 		cout << "Creating new file.\n";
 		d_fp.open(s_filename, d_fp.in | d_fp.out | d_fp.trunc);
 	}
+
+	d_size = 0;
+	Person p;
+	while(true){
+		p.read(d_fp);
+		if(d_fp.eof()) break;
+		d_size++;
+	}
+
+	d_fp.clear();
+}
+
+int MyDatabase::size(){
+	return d_size;
 }
 
 Person MyDatabase::readPerson(){
@@ -165,147 +179,72 @@ void MyDatabase::normal_heapsort(ostream &fp){
 }
 
 void MyDatabase::p_readPeople(MyDatabase *db){
-	unique_lock<mutex> lock(db->d_mut, defer_lock);
-	vector<Person> vec;
 	Person p;
 
 	db->d_fp.clear();
 	db->d_fp.seekg(0, ios::beg);
 
-	do {
-		vec.clear();
-
-		// Reads a block of Person
-		for(int i = 0; i < 1000; i++){
-			p.read(db->d_fp);
-			if(!db->d_fp.eof()){
-				vec.push_back(p);
-			} else break;
-		}
-
-		// Adds the block of Person to the queue
-		while(!lock.try_lock());
-
-		for(Person &p: vec){
-			db->d_queue.push_back(p);
-		}
-
-		lock.unlock();
-
+	while(true){
+		p.read(db->d_fp);
 		if(db->d_fp.eof())
 			break;
-	} while (true);
-
-	db->d_procEnded = true;
+		db->d_heap.push_back(p);
+	};
 }
 
 void MyDatabase::p_writeSorted(MyDatabase *db, ostream &fp){
-	unique_lock<mutex> lock(db->d_mut, defer_lock);
-	vector<Person> stolen;
+	int lastSize;
 
-	while(true){
-		// No-op if queue is empty
-		if(db->d_queue.size() == 0){
-			if(db->d_procEnded){
-				return;
-			} else continue;
+	lastSize = db->d_heap.size();
+
+	while(lastSize > 0){
+		// Write new elements
+		while(db->d_heapSize != lastSize){
+			lastSize--;
+			db->d_heap[lastSize].write(fp);
 		}
-
-		// Lock queue
-		while(!lock.try_lock());
-
-		// Steal queue
-		swap(stolen, db->d_queue);
-
-		// Unlock queue
-		lock.unlock();
-
-		// Write stolen Person into the file
-		for(Person &p: stolen)
-			p.write(fp);
-		stolen.clear();
 	}
 }
 
 void MyDatabase::p_buildHeap(){
-	unique_lock<mutex> lock(d_mut, defer_lock);
-	vector<Person> stolen;
+	int n;
 
-	d_heap.clear();
+	d_heapSize = 0;
 
-	while(true){
-		// No-op if queue is empty
-		if(d_queue.size() == 0){
-			if(d_procEnded){
-				return;
-			} else continue;
+	while(d_heapSize != d_size){
+		// Add new elements to the heap
+		n = d_heap.size();
+		while(d_heapSize != n){
+			heapify_up(d_heap, d_heapSize);
+			d_heapSize += 1;
 		}
-
-		// Lock queue
-		while(!lock.try_lock());
-
-		// Steal the queue
-		swap(stolen, d_queue);
-
-		// Unlock queue
-		lock.unlock();
-
-		// Add stolen elements to the heap
-		for(Person &p: stolen){
-			d_heap.push_back(p);
-			heapify_up(d_heap, d_heap.size()-1);
-		}
-		stolen.clear();
 	}
 }
 
 void MyDatabase::p_popSorted(){
-	unique_lock<mutex> lock(d_mut, defer_lock);
-	vector<Person> popped;
+	while(d_heapSize > 0){
+		swap(d_heap[0], d_heap[d_heapSize - 1]);
+		heapify_down(d_heap, 0, d_heapSize - 1);
 
-	int last_elem = d_heap.size() - 1;
-	while(true){
-		// Pop some elements
-		int n = min(100, last_elem+1);
-		for(int i = 0; i < n; i++){
-			popped.push_back(d_heap[0]);
-			d_heap[0] = d_heap[last_elem];
-			heapify_down(d_heap, 0, last_elem);
-			last_elem -= 1;
-		}
-
-		// Lock queue
-		while(!lock.try_lock());
-
-		// Add popped elements to the queue
-		for(Person &p: popped){
-			d_queue.push_back(p);
-			//cout << p.id() << '\n';
-		}
-
-		// Unlock queue
-		lock.unlock();
-
-		// Empty vector
-		popped.clear();
-
-		// Verify end-of-process
-		if(last_elem < 0){
-			d_procEnded = true;
-			break;
-		}
+		// d_heapSize must be decremented here, after the statements above.
+		d_heapSize -= 1;
 	}
 }
 
 void MyDatabase::parallel_heapsort(ostream &fp){
-	d_procEnded = false;
+	// Initialize heap to the exact size we want
+	d_heap.clear();
+	d_heap.reserve(d_size);
 
 	thread thr(MyDatabase::p_readPeople, this);
 	p_buildHeap();
 	thr.join();
 
-	d_procEnded = false;
 	thr = thread(MyDatabase::p_writeSorted, this, ref(fp));
 	p_popSorted();
 	thr.join();
+
+	// Clears the memory reserved
+	d_heap.clear();
+	d_heap.shrink_to_fit();
 }
