@@ -175,8 +175,8 @@ void MyDatabase::p_readPeople(MyDatabase *db){
 	do {
 		vec.clear();
 
-		// Reads a block of 100 Person
-		for(int i = 0; i < 100; i++){
+		// Reads a block of Person
+		for(int i = 0; i < 1000; i++){
 			p.read(db->d_fp);
 			if(!db->d_fp.eof()){
 				vec.push_back(p);
@@ -186,12 +186,12 @@ void MyDatabase::p_readPeople(MyDatabase *db){
 		// Adds the block of Person to the queue
 		while(!lock.try_lock());
 
-		if(db->d_fp.eof())
-			break;
-
 		for(Person &p: vec){
 			db->d_queue.push(p);
 		}
+
+		if(db->d_fp.eof())
+			break;
 
 		lock.unlock();
 	} while (true);
@@ -214,7 +214,7 @@ void MyDatabase::p_writeSorted(MyDatabase *db, ostream &fp){
 		while(!lock.try_lock());
 
 		// Write some Person
-		int n = min((int) db->d_queue.size(), 100);
+		int n = min((int) db->d_queue.size(), 1000);
 		for(int i = 0; i < n; i++){
 			db->d_queue.front().write(fp);
 			//cout << db->d_queue.front().id() << '\n';
@@ -228,33 +228,37 @@ void MyDatabase::p_writeSorted(MyDatabase *db, ostream &fp){
 
 void MyDatabase::p_buildHeap(){
 	unique_lock<mutex> lock(d_queueMut, defer_lock);
+	vector<Person> popped;
+
 	d_vec.clear();
 
 	while(true){
+		// No-op if queue is empty
+		if(d_queue.size() == 0){
+			if(d_procEnded){
+				return;
+			} else continue;
+		}
+
 		// Lock queue
 		while(!lock.try_lock());
 
-		// Add 1 Person from the queue to the heap
-		if(d_queue.size() != 0){
-			d_vec.push_back(d_queue.front());
+		// Get some Person from the queue
+		int n = min((int) d_queue.size(), 1000);
+		for(int i = 0; i < n; i++){
+			popped.push_back(d_queue.front());
 			d_queue.pop();
-			heapify_up(d_vec, d_vec.size()-1);
 		}
 
 		// Unlock queue
 		lock.unlock();
 
-		// Verify end-of-process
-		if(d_procEnded == true){
-			// Add all elements from queue
-			while(d_queue.size() != 0){
-				d_vec.push_back(d_queue.front());
-				d_queue.pop();
-				heapify_up(d_vec, d_vec.size()-1);
-			}
-			// Exit
-			break;
+		// Add popped elements to the heap
+		for(Person &p: popped){
+			d_vec.push_back(p);
+			heapify_up(d_vec, d_vec.size()-1);
 		}
+		popped.clear();
 	}
 }
 
@@ -277,8 +281,10 @@ void MyDatabase::p_popSorted(){
 		while(!lock.try_lock());
 
 		// Add popped elements to the queue
-		for(Person &p: popped)
+		for(Person &p: popped){
 			d_queue.push(p);
+			//cout << p.id() << '\n';
+		}
 
 		// Unlock queue
 		lock.unlock();
