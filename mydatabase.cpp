@@ -201,6 +201,7 @@ void MyDatabase::p_readPeople(MyDatabase *db){
 
 void MyDatabase::p_writeSorted(MyDatabase *db, ostream &fp){
 	unique_lock<mutex> lock(db->d_queueMut, defer_lock);
+	vector<Person> popped;
 
 	while(true){
 		// No-op if queue is empty
@@ -213,16 +214,20 @@ void MyDatabase::p_writeSorted(MyDatabase *db, ostream &fp){
 		// Lock queue
 		while(!lock.try_lock());
 
-		// Write some Person
+		// Get some Person from the queue
 		int n = min((int) db->d_queue.size(), 1000);
 		for(int i = 0; i < n; i++){
-			db->d_queue.front().write(fp);
-			//cout << db->d_queue.front().id() << '\n';
+			popped.push_back(db->d_queue.front());
 			db->d_queue.pop();
 		}
 
 		// Unlock queue
 		lock.unlock();
+
+		// Write popped person into the file
+		for(Person &p: popped)
+			p.write(fp);
+		popped.clear();
 	}
 }
 
