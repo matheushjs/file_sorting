@@ -1,0 +1,40 @@
+==== No Optimization ====
+
+Elements counted: 10000000
+Normal heapsort (clocks): 26.8552
+Normal heapsort (time): 26.8546
+Parallel heapsort (clocks): 46.8393
+Parallel heapsort (time): 23.9062
+
+Elements counted: 10000000
+Normal heapsort (clocks): 26.2416
+Normal heapsort (time): 26.2567
+Parallel heapsort (clocks): 46.6923
+Parallel heapsort (time): 23.8315
+
+Elements counted: 10000000
+Normal heapsort (clocks): 27.8258
+Normal heapsort (time): 27.8255
+Parallel heapsort (clocks): 46.9543
+Parallel heapsort (time): 24.0291
+
+
+==== O3 Optimization ====
+
+Elements counted: 10000000
+Normal heapsort (clocks): 14.7898
+Normal heapsort (time): 14.7895
+Parallel heapsort (clocks): 25.8589
+Parallel heapsort (time): 13.4358
+
+Elements counted: 10000000
+Normal heapsort (clocks): 14.7111
+Normal heapsort (time): 14.7107
+Parallel heapsort (clocks): 27.4514
+Parallel heapsort (time): 14.2635
+
+Elements counted: 10000000
+Normal heapsort (clocks): 14.7387
+Normal heapsort (time): 14.7386
+Parallel heapsort (clocks): 25.6164
+Parallel heapsort (time): 13.342

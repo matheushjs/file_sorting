@@ -18,4 +18,4 @@ HEADERS += \
 
 LIBS += -pthread
 
-QMAKE_CXXFLAGS += -O3
+#QMAKE_CXXFLAGS += -O3
