@@ -193,14 +193,15 @@ void MyDatabase::p_readPeople(MyDatabase *db){
 }
 
 void MyDatabase::p_writeSorted(MyDatabase *db, ostream &fp){
-	int lastSize;
+	int holdValue, lastSize;
 
 	lastSize = db->d_heap.size();
 
 	while(lastSize > 0){
+		holdValue = db->d_heapSize;
 		// Write new elements
-		while(db->d_heapSize != lastSize){
-			lastSize--;
+		while(holdValue < lastSize){
+			lastSize -= 1;
 			db->d_heap[lastSize].write(fp);
 		}
 	}

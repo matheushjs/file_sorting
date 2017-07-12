@@ -34,7 +34,7 @@ class MyDatabase {
 	// Structures for parallel heapsort
 	// Both will be asynchronously, but safely, accessed.
 	std::vector<Person> d_heap;
-	int d_heapSize;
+	volatile int d_heapSize;
 
 	// Number of elements in the database
 	int d_size;
