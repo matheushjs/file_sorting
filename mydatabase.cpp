@@ -198,7 +198,7 @@ void MyDatabase::p_writeSorted(MyDatabase *db, ostream &fp){
 	lastSize = db->d_heap.size();
 
 	while(lastSize > 0){
-		holdValue = db->d_heapSize;
+		holdValue = db->v_heapSize;
 		// Write new elements
 		while(holdValue < lastSize){
 			lastSize -= 1;
@@ -229,6 +229,7 @@ void MyDatabase::p_popSorted(){
 
 		// d_heapSize must be decremented here, after the statements above.
 		d_heapSize -= 1;
+		v_heapSize -= 1;
 	}
 }
 
@@ -241,6 +242,7 @@ void MyDatabase::parallel_heapsort(ostream &fp){
 	p_buildHeap();
 	thr.join();
 
+	v_heapSize = d_heapSize; // Sets up thread-shared variable
 	thr = thread(MyDatabase::p_writeSorted, this, ref(fp));
 	p_popSorted();
 	thr.join();
